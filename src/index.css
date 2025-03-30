@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+.icon {
+  position: relative;
+  cursor: pointer;
+}
+
+.icon::after {
+  content: "Description of the icon"; /* Change to your tooltip text */
+  position: absolute;
+  background-color: black;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+  top: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.icon:hover::after {
+  visibility: visible;
+  opacity: 1;
+}
