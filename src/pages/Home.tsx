@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { Book } from '../types';
 
 const Home = () => {
-  const { books, setBooks, user, cartItems, favorites, savedForLater } = useStore();
+  const { books, setBooks, user, cartItems, favorites, savedForLater, setCartItems, setFavorites } = useStore();
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -40,26 +40,54 @@ const Home = () => {
   const handleAddToCart = async (book: Book) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('cart_items')
-      .insert([{ user_id: user.id, book_id: book.id }]);
+    try {
+      // Check if the book is already in the cart
+      if (isInCart(book.id)) {
+        return;
+      }
 
-    if (error) {
-      console.error('Error adding to cart:', error);
-      return;
+      const { data, error } = await supabase
+        .from('cart_items')
+        .insert([{ user_id: user.id, book_id: book.id }])
+        .select('*, book:books(*)');
+
+      if (error) {
+        throw error;
+      }
+
+      setCartItems([...cartItems, ...(data || [])]);
+    } catch (err) {
+      console.error('Error adding to cart:', err);
     }
   };
 
   const handleAddToFavorites = async (book: Book) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('favorites')
-      .insert([{ user_id: user.id, book_id: book.id }]);
+    try {
+      // Toggle favorite status
+      if (isInFavorites(book.id)) {
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('book_id', book.id);
 
-    if (error) {
-      console.error('Error adding to favorites:', error);
-      return;
+        if (error) throw error;
+
+        setFavorites(favorites.filter(item => item.book_id !== book.id));
+      } else {
+        const { data, error } = await supabase
+          .from('favorites')
+          .insert([{ user_id: user.id, book_id: book.id }])
+          .select();
+
+        if (error) throw error;
+
+        setFavorites([...favorites, ...(data || [])]);
+      }
+    } catch (err) {
+      console.error('Error updating favorites:', err);
     }
   };
 
@@ -98,36 +126,53 @@ const Home = () => {
                     <>
                       <button
                         onClick={() => handleAddToFavorites(book)}
-                        disabled={isInFavorites(book.id)}
-                        className={`p-2 rounded-full ${
-                          isInFavorites(book.id)
-                            ? 'bg-pink-100 text-pink-500'
-                            : 'hover:bg-gray-100 text-gray-500 hover:text-pink-500'
-                        }`}
+                        className="relative group p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        title={isInFavorites(book.id) ? "Remove from favorites" : "Add to favorites"}
                       >
-                        <Heart className="h-5 w-5" />
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isInFavorites(book.id) 
+                              ? 'fill-pink-500 text-pink-500' 
+                              : 'text-gray-500 hover:text-pink-500'
+                          }`} 
+                        />
+                        <span className="tooltip">
+                          {isInFavorites(book.id) ? "Remove from favorites" : "Add to favorites"}
+                        </span>
                       </button>
                       <button
                         onClick={() => handleSaveForLater(book)}
                         disabled={isInSavedForLater(book.id)}
-                        className={`p-2 rounded-full ${
-                          isInSavedForLater(book.id)
-                            ? 'bg-indigo-100 text-indigo-500'
-                            : 'hover:bg-gray-100 text-gray-500 hover:text-indigo-500'
-                        }`}
+                        className="relative group p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        title={isInSavedForLater(book.id) ? "Saved for later" : "Save for later"}
                       >
-                        <BookmarkPlus className="h-5 w-5" />
+                        <BookmarkPlus 
+                          className={`h-5 w-5 ${
+                            isInSavedForLater(book.id)
+                              ? 'text-indigo-500'
+                              : 'text-gray-500 hover:text-indigo-500'
+                          }`} 
+                        />
+                        <span className="tooltip">
+                          {isInSavedForLater(book.id) ? "Saved for later" : "Save for later"}
+                        </span>
                       </button>
                       <button
                         onClick={() => handleAddToCart(book)}
                         disabled={isInCart(book.id)}
-                        className={`p-2 rounded-full ${
-                          isInCart(book.id)
-                            ? 'bg-green-100 text-green-500'
-                            : 'hover:bg-gray-100 text-gray-500 hover:text-green-500'
-                        }`}
+                        className="relative group p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        title={isInCart(book.id) ? "In cart" : "Add to cart"}
                       >
-                        <ShoppingCart className="h-5 w-5" />
+                        <ShoppingCart 
+                          className={`h-5 w-5 ${
+                            isInCart(book.id)
+                              ? 'text-green-500'
+                              : 'text-gray-500 hover:text-green-500'
+                          }`} 
+                        />
+                        <span className="tooltip">
+                          {isInCart(book.id) ? "In cart" : "Add to cart"}
+                        </span>
                       </button>
                     </>
                   )}

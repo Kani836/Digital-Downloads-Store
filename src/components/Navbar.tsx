@@ -1,11 +1,33 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Heart, BookMarked, LogIn, LogOut } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { supabase } from '../lib/supabase';
 
 const Navbar = () => {
-  const { user, setUser } = useStore();
+  const { user, setUser, cartItems, favorites, setCartItems, setFavorites } = useStore();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) return;
+
+      // Fetch cart items
+      const { data: cartData } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', user.id);
+      setCartItems(cartData || []);
+
+      // Fetch favorites
+      const { data: favoritesData } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', user.id);
+      setFavorites(favoritesData || []);
+    };
+
+    fetchUserData();
+  }, [user, setCartItems, setFavorites]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -28,30 +50,48 @@ const Navbar = () => {
               <>
                 <Link
                   to="/favorites"
-                  className="text-gray-600 hover:text-indigo-600 flex items-center"
+                  className="text-gray-600 hover:text-indigo-600 flex items-center relative group"
+                  title="Favorites"
                 >
-                  <Heart className="h-6 w-6" />
+                  <Heart className={`h-6 w-6 ${favorites.length > 0 ? 'fill-pink-500 text-pink-500' : ''}`} />
+                  {favorites.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {favorites.length}
+                    </span>
+                  )}
+                  <span className="tooltip">Favorites</span>
                 </Link>
                 <Link
                   to="/cart"
-                  className="text-gray-600 hover:text-indigo-600 flex items-center"
+                  className="text-gray-600 hover:text-indigo-600 flex items-center relative group"
+                  title="Shopping Cart"
                 >
                   <ShoppingCart className="h-6 w-6" />
+                  {cartItems.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-indigo-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartItems.length}
+                    </span>
+                  )}
+                  <span className="tooltip">Shopping Cart</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="text-gray-600 hover:text-indigo-600 flex items-center"
+                  className="text-gray-600 hover:text-indigo-600 flex items-center relative group"
+                  title="Logout"
                 >
                   <LogOut className="h-6 w-6" />
+                  <span className="tooltip">Logout</span>
                 </button>
               </>
             ) : (
               <Link
                 to="/login"
-                className="text-gray-600 hover:text-indigo-600 flex items-center"
+                className="text-gray-600 hover:text-indigo-600 flex items-center relative group"
+                title="Login"
               >
                 <LogIn className="h-6 w-6" />
                 <span className="ml-1">Login</span>
+                <span className="tooltip">Login to your account</span>
               </Link>
             )}
           </div>
